@@ -3,23 +3,23 @@ import test from 'node:test';
 import omit from 'lodash/omit.js';
 import { mergeLayers } from '../src/index.js';
 
-// These assertions pin the vulnerable behaviour of the pinned lodash build. The remediation PR is
-// expected to invert them, and that inversion is the visible evidence of the fix.
+// These assertions used to pin the vulnerable behaviour of the pinned lodash build. lodash 4.18.1
+// fixes GHSA-4xc9-xhrj-v574 and GHSA-xxjr-mmjv-4gpg, so they now assert the secure behaviour.
 
-test('vulnerable today: mergeLayers with a single layer lets a constructor.prototype payload reach Object.prototype', () => {
+test('secure now: mergeLayers with a single layer does not let a constructor.prototype payload reach Object.prototype', () => {
   try {
     mergeLayers(JSON.parse('{"constructor":{"prototype":{"charMergeOneLayer":"PWN"}}}'));
-    assert.equal({}.charMergeOneLayer, 'PWN');
+    assert.equal({}.charMergeOneLayer, undefined);
   } finally {
     delete Object.prototype.charMergeOneLayer;
   }
 });
 
-test('vulnerable today: the lodash omit build behind redact deletes an inherited property for a crafted key path', () => {
+test('secure now: the lodash omit build behind redact does not delete an inherited property for a crafted key path', () => {
   Object.prototype.charOmitInherited = 'inherited';
   try {
     omit({ a: 1 }, ['__proto__.charOmitInherited']);
-    assert.equal({}.charOmitInherited, undefined);
+    assert.equal({}.charOmitInherited, 'inherited');
   } finally {
     delete Object.prototype.charOmitInherited;
   }
