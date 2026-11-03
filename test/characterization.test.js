@@ -4,22 +4,25 @@ import omit from 'lodash/omit.js';
 import { mergeLayers } from '../src/index.js';
 
 // These assertions pinned the vulnerable behaviour of the previously pinned lodash build. The
-// lodash 4.18.1 upgrade fixes the prototype pollution, so they now assert the secure behaviour.
+// lodash 4.18.1 upgrade closes both prototype pollution paths, so each one now asserts that the
+// attack is rejected rather than that it succeeds.
 
-test('secure now: mergeLayers with a single layer does not let a constructor.prototype payload reach Object.prototype', () => {
+test('secure now: mergeLayers with a single layer rejects a constructor.prototype payload', () => {
   try {
     mergeLayers(JSON.parse('{"constructor":{"prototype":{"charMergeOneLayer":"PWN"}}}'));
-    assert.equal({}.charMergeOneLayer, undefined);
+    assert.notEqual({}.charMergeOneLayer, 'PWN');
+    assert.equal(Object.hasOwn(Object.prototype, 'charMergeOneLayer'), false);
   } finally {
     delete Object.prototype.charMergeOneLayer;
   }
 });
 
-test('secure now: the lodash omit build behind redact keeps an inherited property for a crafted key path', () => {
+test('secure now: the lodash omit build behind redact rejects a crafted __proto__ key path', () => {
   Object.prototype.charOmitInherited = 'inherited';
   try {
     omit({ a: 1 }, ['__proto__.charOmitInherited']);
-    assert.equal({}.charOmitInherited, 'inherited');
+    assert.notEqual({}.charOmitInherited, undefined);
+    assert.equal(Object.hasOwn(Object.prototype, 'charOmitInherited'), true);
   } finally {
     delete Object.prototype.charOmitInherited;
   }
